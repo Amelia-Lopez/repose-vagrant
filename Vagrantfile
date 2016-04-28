@@ -161,6 +161,14 @@ pip install --upgrade pip setuptools
 pip install --upgrade httpie
 SCRIPT
 
+$other_tools = <<SCRIPT
+echo "-------------------------------------------------------------------------------------------------------------------"
+echo "Installing other tools"
+echo "-------------------------------------------------------------------------------------------------------------------"
+
+yum install -y --quiet vim
+SCRIPT
+
 $post_provisioning_instructions = <<INSTRUCTIONS
 cat << EOF
 -------------------------------------------------------------------------------------------------------------------
@@ -207,6 +215,7 @@ Vagrant.configure(2) do |config|
   config.vm.provision "shell", inline: $install_httpie
   config.vm.provision "shell", inline: $run_fake_identity
   config.vm.provision "shell", inline: $run_httpbin
+  config.vm.provision "shell", inline: $other_tools
   config.vm.provision "shell", privileged: false, inline: $post_provisioning_instructions
 
   # config.vm.network "forwarded_port", guest: 8080, host: 8080
