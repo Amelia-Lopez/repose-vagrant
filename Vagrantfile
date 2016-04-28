@@ -2,30 +2,48 @@
 # vi: set ft=ruby :
 
 $update_yum = <<SCRIPT
+echo "-------------------------------------------------------------------------------------------------------------------"
+echo "Updating Yum packages"
+echo "-------------------------------------------------------------------------------------------------------------------"
+
 # update package lists from the server
-yum update -y
+yum update -y --quiet
 SCRIPT
 
 $install_repose_dependencies = <<SCRIPT
+echo "-------------------------------------------------------------------------------------------------------------------"
+echo "Installing Repose package dependencies"
+echo "-------------------------------------------------------------------------------------------------------------------"
+
 # install potentially missing packages needed to install Repose
-yum install -y wget
-wget http://pkgs.repoforge.org/rpmforge-release/rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm
-rpm -Uvh rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm
-yum install -y daemonize
+yum install -y --quiet wget
+wget --quiet http://pkgs.repoforge.org/rpmforge-release/rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm
+rpm -Uh --quiet rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm
+yum install -y --quiet daemonize
 
 # add openrepose.org repository
-wget -O /etc/yum.repos.d/openrepose.repo http://repo.openrepose.org/el/openrepose.repo
+wget --quiet -O /etc/yum.repos.d/openrepose.repo http://repo.openrepose.org/el/openrepose.repo
 SCRIPT
 
 $install_nodejs = <<SCRIPT
-# yum install -y epel-release  # TODO DELETE THIS
-wget https://rpm.nodesource.com/pub_0.12/el/7/x86_64/nodejs-0.12.7-1nodesource.el7.centos.x86_64.rpm
-rpm -Uvh nodejs-0.12.7-1nodesource.el7.centos.x86_64.rpm
+echo "-------------------------------------------------------------------------------------------------------------------"
+echo "Installing Node JS"
+echo "-------------------------------------------------------------------------------------------------------------------"
+
+wget --quiet https://rpm.nodesource.com/pub_0.12/el/7/x86_64/nodejs-0.12.7-1nodesource.el7.centos.x86_64.rpm
+rpm -Uh --quiet nodejs-0.12.7-1nodesource.el7.centos.x86_64.rpm
+yum install -y --quiet gcc-c++ make
 SCRIPT
 
 $install_fake_identity = <<SCRIPT
-mkdir -p /opt/FakeIdentity
-cd /opt/FakeIdentity
+echo "-------------------------------------------------------------------------------------------------------------------"
+echo "Installing Fake Identity"
+echo "-------------------------------------------------------------------------------------------------------------------"
+
+sudo mkdir -p /opt/fake-identity
+sudo chmod 777 /opt/fake-identity
+cd /opt/fake-identity
+echo `pwd`
 
 # file contents taken from: https://github.com/rackerlabs/repose-perf-infrastructure/blob/master/src/repose_performance/tracing/master/package.json
 cat > package.json << EOF
@@ -101,34 +119,55 @@ EOF
 
 # download and install the Fake Identity app dependencies
 npm install
+
+sudo chmod 755 /opt/fake-identity
 SCRIPT
 
 $run_fake_identity = <<SCRIPT
-cd /opt/FakeIdentity
+echo "-------------------------------------------------------------------------------------------------------------------"
+echo "Starting Fake Identity"
+echo "-------------------------------------------------------------------------------------------------------------------"
+
+cd /opt/fake-identity
 node app.js &
 SCRIPT
 
 $install_httpbin = <<SCRIPT
+echo "-------------------------------------------------------------------------------------------------------------------"
+echo "Installing httpbin"
+echo "-------------------------------------------------------------------------------------------------------------------"
+
 yum install -y curl python-setuptools
 easy_install pip
 pip install httpbin gunicorn
 SCRIPT
 
 $run_httpbin = <<SCRIPT
+echo "-------------------------------------------------------------------------------------------------------------------"
+echo "Starting httpbin"
+echo "-------------------------------------------------------------------------------------------------------------------"
+
 gunicorn httpbin:app &
 SCRIPT
 
 $install_httpie = <<SCRIPT
+echo "-------------------------------------------------------------------------------------------------------------------"
+echo "Installing HTTPie"
+echo "-------------------------------------------------------------------------------------------------------------------"
+
 yum install -y curl python-setuptools
 easy_install pip
 pip install --upgrade pip setuptools
 pip install --upgrade httpie
 SCRIPT
 
-$repose_install_instructions = <<INSTRUCTIONS
+$post_provisioning_instructions = <<INSTRUCTIONS
+cat << EOF
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
 To log into your Vagrant box, run:
 vagrant ssh
-
+-------------------------------------------------------------------------------------------------------------------
 To install the latest version of Repose, run:
 sudo yum install -y repose-valve repose-filter-bundle repose-extensions-filter-bundle
 
@@ -137,14 +176,14 @@ sudo yum install -y repose-valve-7.2.1.0-1 repose-filter-bundle-7.2.1.0-1 repose
 
 To see the list of available Repose versions to install, run:
 yum --showduplicates list repose-valve | expand
-INSTRUCTIONS
-
-$other_instructions = <<INSTRUCTIONS
+-------------------------------------------------------------------------------------------------------------------
 Fake Identity is listening on port 9090
 httpbin is listening on port 8000
 
 For more details on using httpbin, see: http://httpbin.org/
 For more details on using HTTPie, see: https://github.com/jkbrzt/httpie
+-------------------------------------------------------------------------------------------------------------------
+EOF
 INSTRUCTIONS
 
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
@@ -163,14 +202,12 @@ Vagrant.configure(2) do |config|
   config.vm.provision "shell", inline: $update_yum
   config.vm.provision "shell", inline: $install_repose_dependencies
   config.vm.provision "shell", inline: $install_nodejs
-  config.vm.provision "shell", inline: $install_fake_identity
+  config.vm.provision "shell", privileged: false, inline: $install_fake_identity
   config.vm.provision "shell", inline: $install_httpbin
   config.vm.provision "shell", inline: $install_httpie
   config.vm.provision "shell", inline: $run_fake_identity
   config.vm.provision "shell", inline: $run_httpbin
-
-  puts $repose_install_instructions
-  puts $other_instructions
+  config.vm.provision "shell", privileged: false, inline: $post_provisioning_instructions
 
   # config.vm.network "forwarded_port", guest: 8080, host: 8080
   # config.vm.synced_folder "../data", "/vagrant_data"
