@@ -167,6 +167,21 @@ echo "Installing other tools"
 echo "-------------------------------------------------------------------------------------------------------------------"
 
 yum install -y --quiet vim
+
+mkdir -p /etc/systemd/system/repose-valve.service.d/
+cd /etc/systemd/system/repose-valve.service.d/
+cat > local.conf << EOF
+[Service]
+Environment="SAXON_HOME=/etc/saxon"
+EOF
+
+mkdir -p /etc/saxon
+chmod 755 /etc/saxon
+cd /etc/saxon
+cat > saxon-license.lic << EOF
+Feed me a license. NOM NOM NOM
+EOF
+chmod 644 /etc/saxon/saxon-license.lic
 SCRIPT
 
 $post_provisioning_instructions = <<INSTRUCTIONS
@@ -184,6 +199,9 @@ sudo yum install -y repose-valve-7.2.1.0-1 repose-filter-bundle-7.2.1.0-1 repose
 
 To see the list of available Repose versions to install, run:
 yum --showduplicates list repose-valve | expand
+
+To install Repose using a local artifact (e.g. 8.0.0.0-1), run:
+yum --nogpgcheck localinstall repose-valve-8.0.0.0-1.noarch.rpm
 -------------------------------------------------------------------------------------------------------------------
 Fake Identity is listening on port 9090
 httpbin is listening on port 8000
